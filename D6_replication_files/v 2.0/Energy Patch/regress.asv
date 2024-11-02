@@ -1,0 +1,27 @@
+% OLS routine to calculate energy coefficients to be used in
+% contemporaneous forecasting.
+% Copyright (2009) Pedro Silos and Diego Vilán.
+%
+% --------------Housekeeping: ----------------------
+
+close all;
+clear all;
+clc;
+
+% Load data:
+load ols.txt;
+
+% Define matrices:
+Y = ols(:,1);
+GA = ols(:,2);
+FL = ols(:,3);
+AL = ols(:,4);
+TN = ols(:,5);
+LA = ols(:,6);
+MS = ols(:,7);
+
+% Let C be the vector of OLS coefficients:
+cGA = inv(X'*X)*X'*Y;
+
+
+

@@ -1,0 +1,194 @@
+% Chow-Lin interpolation for six state series from quarter to monthly data.
+
+% The quarter data is on personal income per state.
+% Note that both data files datam and dataq should have a particular state
+% ordering. i.e.: states should be order in the following fashion: GA, FL,
+% AL, TN, LA, MS. Each state should be a new column. Each date is a new
+% row.
+
+
+% Starting:
+clear all;
+clc;
+
+% Create C matrix:
+c=zeros(116,348);
+j=zeros(116)+3;
+j(1,1)=0;
+k=1;
+for i=1:116
+    c(i,1 + j(i,1)*(i-1): 3 + j(i,1)*(i-1)) = 1;
+end
+
+% Create individual quarter data from monthly observables:
+load datam.txt;
+%Unemployment:
+UQGA = c*datam(:,1);
+UQFL = c*datam(:,4);
+UQAL = c*datam(:,7);
+UQTN = c*datam(:,10);
+UQLA = c*datam(:,13);
+UQMS = c*datam(:,16);
+% Employment:
+EQGA = c*datam(:,2);
+EQFL = c*datam(:,5);
+EQAL = c*datam(:,8);
+EQTN = c*datam(:,11);
+EQLA = c*datam(:,14);
+EQMS = c*datam(:,17);
+% Average hours worked per week:
+HQGA = c*datam(:,3);
+HQFL = c*datam(:,6);
+HQAL = c*datam(:,9);
+HQTN = c*datam(:,12);
+HQLA = c*datam(:,15);
+HQMS = c*datam(:,18);
+
+% Create XQ from individual quarter data series:
+XQGA = [UQGA,EQGA,HQGA];
+XQFL = [UQFL,EQFL,HQFL];
+XQAL = [UQAL,EQAL,HQAL];
+XQTN = [UQTN,EQTN,HQTN];
+XQLA = [UQLA,EQLA,HQLA];
+XQMS = [UQMS,EQMS,HQMS];
+
+% Calculate OLS estimate:
+load dataq.txt;
+betahatGA = (XQGA'*XQGA)^-1*(XQGA'* dataq(:,1));
+betahatFL = (XQFL'*XQFL)^-1*(XQFL'* dataq(:,2));
+betahatAL = (XQAL'*XQAL)^-1*(XQAL'* dataq(:,3));
+betahatTN = (XQTN'*XQTN)^-1*(XQTN'* dataq(:,4));
+betahatLA = (XQLA'*XQLA)^-1*(XQLA'* dataq(:,5));
+betahatMS = (XQMS'*XQMS)^-1*(XQMS'* dataq(:,6));
+
+% Calculate OLS residuals:
+
+% Obtain predicted values:
+yhatGA = XQGA*betahatGA;
+yhatFL = XQFL*betahatFL;
+yhatAL = XQAL*betahatAL;
+yhatTN = XQTN*betahatTN;
+yhatLA = XQLA*betahatLA;
+yhatMS = XQMS*betahatMS;
+
+% Obtain residuals:
+resGA = dataq(:,1)- yhatGA;
+resFL = dataq(:,2)- yhatFL;
+resAL = dataq(:,3)- yhatAL;
+resTN = dataq(:,4)- yhatTN;
+resLA = dataq(:,5)- yhatLA;
+resMS = dataq(:,6)- yhatMS;
+
+% Obtain residual's first order autocorrelation coefficient:
+corrGA=corr(resGA(2:length(resGA)),resGA(1:length(resGA)-1));
+corrFL=corr(resFL(2:length(resFL)),resFL(1:length(resFL)-1));
+corrAL=corr(resAL(2:length(resAL)),resAL(1:length(resAL)-1));
+corrTN=corr(resTN(2:length(resTN)),resTN(1:length(resTN)-1));
+corrLA=corr(resLA(2:length(resLA)),resLA(1:length(resLA)-1));
+corrMS=corr(resMS(2:length(resMS)),resMS(1:length(resMS)-1));
+
+% Calculate "ahat" per state:
+global cr
+cr=corrGA;
+ahatGA=fsolve(@F,1);
+cr=corrFL;
+ahatFL=fsolve(@F,1);
+cr=corrAL;
+ahatAL=fsolve(@F,1);
+cr=corrTN;
+ahatTN=fsolve(@F,1);
+cr=corrLA;
+ahatLA=fsolve(@F,1);
+cr=corrMS;
+ahatMS=fsolve(@F,1);
+
+% Calculate estimate of V, Vhat per state:
+
+vhatGA=zeros(348,348);
+for i=1:348
+for j=1:348
+vhatGA(i,j)=ahatGA.^abs(i-j);
+end
+end
+
+vhatFL=zeros(348,348);
+for i=1:348
+for j=1:348
+vhatFL(i,j)=ahatFL.^abs(i-j);
+end
+end
+
+vhatAL=zeros(348,348);
+for i=1:348
+for j=1:348
+vhatAL(i,j)=ahatAL.^abs(i-j);
+end
+end
+
+vhatTN=zeros(348,348);
+for i=1:348
+for j=1:348
+vhatTN(i,j)=ahatTN.^abs(i-j);
+end
+end
+
+vhatLA=zeros(348,348);
+for i=1:348
+for j=1:348
+vhatLA(i,j)=ahatLA.^abs(i-j);
+end
+end
+
+vhatMS=zeros(348,348);
+for i=1:348
+for j=1:348
+vhatMS(i,j)=ahatMS.^abs(i-j);
+end
+end
+
+
+% Calculate GLS estimator:
+betahatGLSGA = (XQGA'*((c*vhatGA*c')^-1)*XQGA)^-1*XQGA'*(c*vhatGA*c')^-1* dataq(:,1);
+betahatGLSFL = (XQFL'*((c*vhatFL*c')^-1)*XQGA)^-1*XQGA'*(c*vhatFL*c')^-1* dataq(:,2);
+betahatGLSAL = (XQAL'*((c*vhatAL*c')^-1)*XQGA)^-1*XQGA'*(c*vhatAL*c')^-1* dataq(:,3);
+betahatGLSTN = (XQTN'*((c*vhatTN*c')^-1)*XQGA)^-1*XQGA'*(c*vhatTN*c')^-1* dataq(:,4);
+betahatGLSLA = (XQLA'*((c*vhatLA*c')^-1)*XQGA)^-1*XQGA'*(c*vhatLA*c')^-1* dataq(:,5);
+betahatGLSMS = (XQMS'*((c*vhatMS*c')^-1)*XQGA)^-1*XQGA'*(c*vhatMS*c')^-1* dataq(:,6);
+
+
+% Calculate GLS residuals:
+
+% Obtain GLS predicted values:
+yhatGLSGA = XQGA*betahatGLSGA;
+yhatGLSFL = XQFL*betahatGLSFL;
+yhatGLSAL = XQAL*betahatGLSAL;
+yhatGLSTN = XQTN*betahatGLSTN;
+yhatGLSLA = XQLA*betahatGLSLA;
+yhatGLSMS = XQMS*betahatGLSMS;
+
+% Obtain GLS residuals:
+resGLSGA = dataq(:,1)- yhatGLSGA;
+resGLSFL = dataq(:,2)- yhatGLSFL;
+resGLSAL = dataq(:,3)- yhatGLSAL;
+resGLSTN = dataq(:,4)- yhatGLSTN;
+resGLSLA = dataq(:,5)- yhatGLSLA;
+resGLSMS = dataq(:,6)- yhatGLSMS;
+
+% Aggregate monthly, observable data per state:
+GAM = [datam(:,1:3)];
+FLM = [datam(:,4:6)];
+ALM = [datam(:,7:9)];
+TNM = [datam(:,10:12)];
+LAM = [datam(:,13:15)];
+MSM = [datam(:,16:18)];
+
+
+% Chow-lin linear, unbiased estimate of unobserved montly series per state:
+yhatMGA = GAM * betahatGLSGA + vhatGA*c'*(c*vhatGA*c')^-1*resGLSGA;
+yhatMFL = FLM * betahatGLSFL + vhatFL*c'*(c*vhatFL*c')^-1*resGLSFL;
+yhatMAL = ALM * betahatGLSAL + vhatAL*c'*(c*vhatAL*c')^-1*resGLSAL;
+yhatMTN = TNM * betahatGLSTN + vhatTN*c'*(c*vhatTN*c')^-1*resGLSTN;
+yhatMAL = ALM * betahatGLSAL + vhatAL*c'*(c*vhatAL*c')^-1*resGLSAL;
+yhatMMS = MSM * betahatGLSMS + vhatMS*c'*(c*vhatMS*c')^-1*resGLSMS;
+
+
